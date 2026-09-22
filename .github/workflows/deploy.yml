@@ -1,0 +1,37 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Build Docker Image
+        run: |
+          docker build -t my-app:${{ github.sha }} .
+
+  deploy-staging:
+    needs: build-push
+    environment: staging
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Create kind cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: kind-staging
+
+      - name: Deploy using Helm
+        run: |
+          helm upgrade --install my-app-staging ./charts/my-app \
+            --namespace staging \
+            --create-namespace \
+            --set image.tag=${{ github.sha }}
